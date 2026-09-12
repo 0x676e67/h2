@@ -860,13 +860,24 @@ async fn response_missing_status() {
 
     let client = async move {
         let (mut client, mut conn) = client::handshake(io).await.unwrap();
-        for _ in 0..2 {
-            let request = Request::get("https://example.com/").body(()).unwrap();
-            let (response, _) = client.send_request(request, true).unwrap();
-            let err = conn.drive(response).await.expect_err("missing :status");
-            assert!(err.is_reset());
-            assert_eq!(err.reason(), Some(Reason::PROTOCOL_ERROR));
-        }
+
+        let request = Request::get("https://example.com/").body(()).unwrap();
+        let (response, _) = client.send_request(request, true).unwrap();
+        let err = conn
+            .drive(response)
+            .await
+            .expect_err("stream 1: empty response without :status");
+        assert!(err.is_reset());
+        assert_eq!(err.reason(), Some(Reason::PROTOCOL_ERROR));
+
+        let request = Request::get("https://example.com/").body(()).unwrap();
+        let (response, _) = client.send_request(request, true).unwrap();
+        let err = conn
+            .drive(response)
+            .await
+            .expect_err("stream 3: final response without :status after 103");
+        assert!(err.is_reset());
+        assert_eq!(err.reason(), Some(Reason::PROTOCOL_ERROR));
 
         let request = Request::get("https://example.com/").body(()).unwrap();
         let (response, _) = client.send_request(request, true).unwrap();
